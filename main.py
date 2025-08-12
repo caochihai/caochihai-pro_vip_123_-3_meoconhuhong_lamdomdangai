@@ -41,10 +41,17 @@ class Config:
     PORT = int(os.getenv("PORT", 5000))
     HOST = os.getenv("HOST", "0.0.0.0")
 
-# PDF processing
+
 def extract_text_from_pdf(url):
-    resp = requests.get(url)
-    resp.raise_for_status()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/pdf,application/octet-stream,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+    }
+    
+    resp = requests.get(url, headers=headers, timeout=30)
     with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
         return "\n".join(page.extract_text() or "" for page in pdf.pages)
 
@@ -85,41 +92,23 @@ class PDFRequest(BaseModel):
 @app.post("/summarize_pdf")
 async def summarize_pdf(request: PDFRequest):
     url = request.pdf_url.strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="PDF URL required")
 
     if url in cache:
         return JSONResponse(content={"summary": cache[url]})
 
-    try:
-        full_text = extract_text_from_pdf(url)
-        if not full_text:
-            raise HTTPException(status_code=400, detail="No text found in PDF")
+    full_text = extract_text_from_pdf(url)
+    input_text = truncate_text(full_text)
+    summary = "".join(run_inference(input_text))
 
-        input_text = truncate_text(full_text)
-        summary = "".join(run_inference(input_text))
-
-        cache[url] = summary
-        return JSONResponse(content={"summary": summary})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    cache[url] = summary
+    return JSONResponse(content={"summary": summary})
 
 @app.post("/stream_summary")
 async def stream_summary(request: PDFRequest):
     url = request.pdf_url.strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="PDF URL required")
-
-    try:
-        full_text = extract_text_from_pdf(url)
-        if not full_text:
-            raise HTTPException(status_code=400, detail="No text found in PDF")
-
-        input_text = truncate_text(full_text)
-        return StreamingResponse(run_inference(input_text), media_type="text/event-stream")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
+    full_text = extract_text_from_pdf(url)
+    input_text = truncate_text(full_text)
+    return StreamingResponse(run_inference(input_text), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn
