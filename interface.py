@@ -332,19 +332,46 @@ if function_choice == "📄 PDF Text Summarizer":
                 st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/176983/VanBanGoc_645029.pdf"
                 # Set sample summary for example 1
                 st.session_state.pdf_summary = """
-                <strong>📋 Document Summary - Example 1</strong><br><br>
-                <strong>🏛️ Document Type:</strong> Government Decree<br>
-                <strong>📅 Issue Date:</strong> 2024<br>
-                <strong>🎯 Main Topic:</strong> Administrative Procedures and Regulations<br><br>
-                
-                <strong>📝 Key Points:</strong><br>
-                • Establishes new administrative procedures for government agencies<br>
-                • Defines responsibilities and authorities of various departments<br>
-                • Outlines compliance requirements and implementation timeline<br>
-                • Specifies penalties for non-compliance with regulations<br>
-                • Provides guidelines for inter-agency coordination and cooperation<br><br>
-                
-                <strong>🎯 Objective:</strong> To streamline administrative processes and improve efficiency in government operations while ensuring transparency and accountability in public service delivery.
+**TÓM TẮT VĂN BẢN** \n
+Tên văn bản: Thông tư số …/2025/TT-BTNMT ban hành Quy chuẩn kỹ thuật quốc gia về nước thải sinh hoạt và nước thải đô thị, khu dân cư tập trung (QCVN 14:2025/BTNMT).
+Cơ quan ban hành: Bộ Tài nguyên và Môi trường.
+Thời điểm ban hành: Năm 2025.
+Người ký: Thứ trưởng Lê Công Thành.
+
+1. **Phạm vi và đối tượng áp dụng** \n
+Quy định giá trị giới hạn cho phép của các thông số ô nhiễm trong nước thải sinh hoạt, nước thải đô thị, khu dân cư tập trung khi xả ra nguồn tiếp nhận.
+Áp dụng cho mọi cơ quan, tổ chức, cá nhân có hoạt động xả thải (trừ trường hợp có công trình xử lý tại chỗ).
+
+2. **Hiệu lực và thay thế** \n
+Có hiệu lực từ năm 2025 (ngày cụ thể chưa điền).
+Thay thế QCVN 14:2008/BTNMT.
+Giai đoạn chuyển tiếp:
+Các dự án, cơ sở đã được phê duyệt hoặc nộp hồ sơ trước thời điểm hiệu lực vẫn áp dụng QCVN 14:2008/BTNMT và QCVN 40:2011/BTNMT đến hết 31/12/2031.
+Từ 01/01/2032: bắt buộc áp dụng QCVN 14:2025/BTNMT.
+
+3. **Quy định kỹ thuật** \n
+Đưa ra giá trị giới hạn thông số ô nhiễm (pH, BOD5, COD/TOC, TSS, Amoni, Nitơ tổng, Photpho tổng, Coliform, Sunfua, dầu mỡ, chất hoạt động bề mặt…) tại Bảng 1 và Bảng 2.
+Phân loại theo cột A, B, C tùy theo chức năng nguồn tiếp nhận nước thải (cấp nước sinh hoạt, cải thiện chất lượng môi trường, hoặc nguồn khác) và quy mô lưu lượng xả thải.
+
+4. **Phương pháp xác định**\n
+Thực hiện theo TCVN, SMEWW, ISO, US EPA Method.
+Có quy định phương pháp trọng tài trong trường hợp có tranh chấp kết quả.
+
+5. **Quản lý và tuân thủ**\n
+Thông số giới hạn phải ghi rõ trong báo cáo ĐTM, giấy phép môi trường, văn bản đăng ký môi trường.
+Kiểm soát thêm Clo, Chloroform nếu dùng Clo khử trùng; thông số đặc trưng khác nếu có đấu nối nước thải công nghiệp.
+Quan trắc và báo cáo phải do đơn vị có giấy chứng nhận dịch vụ quan trắc môi trường thực hiện.
+
+6. **Trách nhiệm**\n
+Chủ cơ sở, dự án: đảm bảo nước thải đạt chuẩn trước khi xả; xác định đúng thông số ô nhiễm cần kiểm soát.
+Cơ quan quản lý: thẩm định, cấp phép, kiểm tra giám sát.
+UBND cấp tỉnh: rà soát, điều chỉnh quy chuẩn địa phương phù hợp với QCVN mới.
+
+7. **Phụ lục kèm theo**\n
+Phụ lục 1: Danh mục loại hình kinh doanh, dịch vụ được quản lý như nước thải sinh hoạt (khách sạn, nhà nghỉ, ký túc xá, cơ sở y tế, dịch vụ ăn uống, giặt là, massage, trường học, doanh trại, khu chung cư, siêu thị, công viên, bến xe, v.v.).
+Phụ lục 2: Phương pháp lấy mẫu, phân tích các thông số ô nhiễm trong nước thải.\n
+
+Thông tư 2025/TT-BTNMT ban hành QCVN 14:2025/BTNMT quy định giới hạn các thông số ô nhiễm trong nước thải sinh hoạt và nước thải đô thị, thay thế QCVN 14:2008/BTNMT. Văn bản đưa ra lộ trình áp dụng đến 2032, quy định chi tiết về giới hạn kỹ thuật, phương pháp quan trắc, trách nhiệm của cơ quan quản lý và cơ sở xả thải, đồng thời kèm phụ lục về loại hình áp dụng và phương pháp thử nghiệm.
                 """
                 st.rerun()
         with col2:
@@ -352,19 +379,43 @@ if function_choice == "📄 PDF Text Summarizer":
                 st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/175320/VanBanGoc_2025.%20TT%20Dieutra%20dien%20NL%20tai%20tao.pdf"
                 # Set sample summary for example 2
                 st.session_state.pdf_summary = """
-                <strong>📋 Document Summary - Example 2</strong><br><br>
-                <strong>🏛️ Document Type:</strong> Technical Circular<br>
-                <strong>📅 Issue Date:</strong> 2025<br>
-                <strong>🎯 Main Topic:</strong> Renewable Energy Investigation and Assessment<br><br>
-                
-                <strong>📝 Key Points:</strong><br>
-                • Guidelines for renewable energy resource assessment and investigation<br>
-                • Technical standards for energy potential evaluation methods<br>
-                • Environmental impact assessment requirements<br>
-                • Data collection and reporting procedures<br>
-                • Quality control measures for energy studies<br><br>
-                
-                <strong>🎯 Objective:</strong> To provide comprehensive technical guidelines for conducting renewable energy investigations, ensuring standardized methodologies and accurate assessment of energy potential across different regions.
+**TÓM TẮT VĂN BẢN**\n
+Tên văn bản: Thông tư số …/2025/TT-BTNMT quy định chi tiết phạm vi điều tra cơ bản về tài nguyên điện năng lượng tái tạo và năng lượng mới.
+Cơ quan ban hành: Bộ Tài nguyên và Môi trường.
+Người ký: Thứ trưởng Lê Minh Ngân.
+Hiệu lực: Năm 2025.
+
+1. **Phạm vi và đối tượng áp dụng**\n
+Quy định về điều tra cơ bản các dạng điện năng lượng tái tạo và năng lượng mới:
+Điện mặt trời, điện gió, địa nhiệt, sóng biển, thủy triều, chất thải rắn, sinh khối, thủy điện.
+Áp dụng cho cơ quan quản lý, tổ chức, cá nhân liên quan đến điều tra nguồn điện tái tạo.
+
+2. **Nguyên tắc và yêu cầu**\n
+Thu thập dữ liệu phục vụ quy hoạch điện lực và quy hoạch tỉnh.
+Ưu tiên vùng có tiềm năng cao, hạ tầng lưới điện thuận lợi, khu vực thiếu điện.
+Dữ liệu phải chính xác, cập nhật, tuân thủ quy chuẩn kỹ thuật.
+Kinh phí từ ngân sách và nguồn hợp pháp khác.
+
+3. **Nội dung điều tra chính**\n
+Điện mặt trời: đo bức xạ, số giờ nắng, ưu tiên nơi bức xạ > 4 kWh/m²/ngày.
+Điện gió: khảo sát tốc độ, hướng gió, tập trung ở ven biển, cao nguyên.
+Địa nhiệt: nghiên cứu mạch nước nóng, đứt gãy địa chất.
+Sóng biển: đo chiều cao, chu kỳ, mật độ năng lượng sóng.
+Thủy triều: đo mực nước, biên độ triều, ưu tiên cửa sông, vịnh lớn.
+Chất thải rắn: thống kê khối lượng, thành phần, ưu tiên đô thị lớn > 500 tấn/ngày.
+Sinh khối: khảo sát phụ phẩm nông nghiệp, chăn nuôi, chế biến.
+Thủy điện: điều tra thủy văn, sông suối, hồ chứa.
+
+4. **Kết quả điều tra**\n
+Báo cáo tổng hợp.
+Bản đồ phân bố tiềm năng.
+Bộ dữ liệu giấy và số hóa, lưu trữ tại Bộ Tài nguyên và Môi trường.
+
+5. **Tổ chức thực hiện**\n
+Bộ, ngành, địa phương, tổ chức, cá nhân liên quan có trách nhiệm triển khai.
+Vướng mắc báo cáo Bộ TN&MT để xử lý.
+
+Thông tư 2025/TT-BTNMT quy định chi tiết phạm vi điều tra cơ bản về tài nguyên điện năng lượng tái tạo và năng lượng mới (mặt trời, gió, địa nhiệt, sóng biển, thủy triều, chất thải, sinh khối, thủy điện). Điều tra nhằm phục vụ quy hoạch điện lực, an ninh năng lượng, phát triển bền vững, với kết quả là báo cáo, bản đồ phân bố tiềm năng và cơ sở dữ liệu quốc gia.
                 """
                 st.rerun()
         with col3:
@@ -372,19 +423,34 @@ if function_choice == "📄 PDF Text Summarizer":
                 st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/177810/VanBanGoc_03-bnnmt.pdf"
                 # Set sample summary for example 3
                 st.session_state.pdf_summary = """
-                <strong>📋 Document Summary - Example 3</strong><br><br>
-                <strong>🏛️ Document Type:</strong> Ministry Circular<br>
-                <strong>📅 Issue Date:</strong> 2024<br>
-                <strong>🎯 Main Topic:</strong> Natural Resources and Environmental Management<br><br>
-                
-                <strong>📝 Key Points:</strong><br>
-                • Environmental protection policies and implementation measures<br>
-                • Natural resource management and conservation strategies<br>
-                • Monitoring and evaluation frameworks for environmental compliance<br>
-                • Coordination mechanisms between local and national authorities<br>
-                • Public participation requirements in environmental decision-making<br><br>
-                
-                <strong>🎯 Objective:</strong> To establish comprehensive environmental management frameworks that balance economic development with environmental protection, promoting sustainable use of natural resources while ensuring ecological preservation.
+**TÓM TẮT VĂN BẢN**\n
+Tên văn bản: Thông tư số …/2025/TT-BNNMT sửa đổi, bổ sung Thông tư số 25/2024/TT-BNNPTNT ngày 16/12/2024.
+Cơ quan ban hành: Bộ Nông nghiệp và Môi trường.
+Người ký: Thứ trưởng Hoàng Trung.
+Hiệu lực: Năm 2025 (ngày cụ thể sẽ ghi trong văn bản chính thức).
+
+1. **Nội dung sửa đổi, bổ sung**\n
+Điều chỉnh thông tin về tên thương phẩm và tổ chức, cá nhân đăng ký:
+39 hoạt chất, 44 tên thương phẩm thay đổi thông tin tổ chức/cá nhân đăng ký.
+01 hoạt chất, 01 tên thương phẩm thay đổi tên thương phẩm.
+Bổ sung danh mục thuốc bảo vệ thực vật được phép sử dụng tại Việt Nam:
+Thuốc trừ sâu: 132 hoạt chất, 189 tên thương phẩm.
+Thuốc trừ bệnh: 112 hoạt chất, 136 tên thương phẩm.
+Thuốc trừ cỏ: 32 hoạt chất, 60 tên thương phẩm.
+Thuốc điều hòa sinh trưởng: 05 hoạt chất, 07 tên thương phẩm.
+Thuốc trừ chuột: 05 hoạt chất, 07 tên thương phẩm.
+Thuốc trừ ốc: 01 hoạt chất, 02 tên thương phẩm.
+Thuốc trừ mối: 03 hoạt chất, 03 tên thương phẩm.
+Thuốc khử trùng kho: 01 hoạt chất, 01 tên thương phẩm.
+Thuốc bảo quản nông sản: 01 hoạt chất, 01 tên thương phẩm.
+Mã số HS của các loại thuốc trên được thực hiện theo Phụ lục I của Thông tư 01/2024/TT-BNNPTNT.
+
+2. **Hiệu lực và thi hành**
+Thông tư có hiệu lực từ năm 2025.
+Cục Trồng trọt và Bảo vệ thực vật, các đơn vị thuộc Bộ, Sở Nông nghiệp và Môi trường các tỉnh/thành phố, cùng tổ chức/cá nhân liên quan có trách nhiệm thi hành.
+Nếu có khó khăn, vướng mắc thì phản ánh về Bộ Nông nghiệp và Môi trường để giải quyết.
+
+Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ thực vật theo Thông tư 25/2024, gồm điều chỉnh thông tin 40 thương phẩm/hoạt chất, bổ sung gần 300 hoạt chất với hơn 400 tên thương phẩm mới được phép sử dụng, đồng thời quy định áp dụng mã số HS thống nhất.
                 """
                 st.rerun()
         
