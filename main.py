@@ -49,6 +49,7 @@ def extract_text_from_pdf(url):
         'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
+        'ngrok-skip-browser-warning': 'any-value',  # Skip ngrok browser warning
     }
     
     resp = requests.get(url, headers=headers, timeout=30)
