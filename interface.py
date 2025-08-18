@@ -654,26 +654,11 @@ elif function_choice == "🏷️ Document Classification":
                         st.error(f"❌ Error: {str(e)}")
 
         st.markdown('<h4>📌 Examples</h4>', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-
-        # Example 1: Religious Law
-        with col1:
-            if st.button("Exemple 1", use_container_width=True):
-                st.session_state.classification_summary = "Nghị định quy định chi tiết một số điều và biện pháp thi hành Luật tín ngưỡng, tôn giáo"
-                st.session_state.agency = "Văn phòng Chính phủ"
-                st.session_state.example_pdf_url = "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/01/95-cp.signed.pdf"
-                st.session_state.actual_label = [s.lower() for s in[
-                    "Vụ Pháp chế", "Vụ Đất đai", "Cục Biển và Hải đảo Việt Nam", "Cục Đăng ký và Dữ liệu thông tin đất đai",
-                    "Cục Quy hoạch và Phát triển tài nguyên đất", "Viện Khoa học môi trường, biển và hải đảo",
-                    "Vụ Môi trường", "Tổng cục Khí tượng Thuỷ văn", "Cục Bảo tồn thiên nhiên và Đa dạng sinh học",
-                    "Cục Kiểm soát ô nhiễm môi trường", "Cục Biến đổi khí hậu", "Cục Quản lý Tài nguyên nước",
-                    "Cục Viễn thám Quốc gia"
-                ]]
-                st.rerun()
+        col1, col2 = st.columns(2)
 
         # Example 2: Agriculture Strategy
-        with col2:
-            if st.button("Exemple 2", use_container_width=True):
+        with col1:
+            if st.button("Exemple 1", use_container_width=True):
                 st.session_state.classification_summary = "Phê duyệt Chiến lược phát triển trồng trọt đến năm 2030, tầm nhìn đến năm 2050"
                 st.session_state.agency = "Thủ tướng Chính phủ"
                 st.session_state.example_pdf_url = "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/01/1748-ttg.signed.pdf"
@@ -687,8 +672,8 @@ elif function_choice == "🏷️ Document Classification":
                 st.rerun()
 
         # Example 3: Overseas Vietnamese Committee
-        with col3:
-            if st.button("Exemple 3", use_container_width=True):
+        with col2:
+            if st.button("Exemple 2", use_container_width=True):
                 st.session_state.classification_summary = "Quyết định Quy định chức năng, nhiệm vụ, quyền hạn và cơ cấu tổ chức của Ủy ban Nhà nước về người Việt Nam ở nước ngoài trực thuộc Bộ Ngoại giao"
                 st.session_state.agency = "Thủ tướng Chính phủ"
                 st.session_state.example_pdf_url = "https://datafiles.chinhphu.vn/cpp/files/vbpq/2023/12/30-qdttg.signed.pdf"
