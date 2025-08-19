@@ -224,7 +224,7 @@ for key in ["pdf_url", "pdf_summary", "classification_summary", "agency", "messa
         st.session_state[key] = [] if key == "messages" else ""
 
 # Main title
-st.markdown('<h1 class="main-header">📄 Document Processor</h1>', unsafe_allow_html=True)
+#st.markdown('<h1 class="main-header">📄 Document Processor</h1>', unsafe_allow_html=True)
 
 # Sidebar
 st.sidebar.markdown("""
@@ -242,96 +242,86 @@ function_choice = st.sidebar.selectbox(
 
 
 if function_choice == "📄 PDF Text Summarizer":
-    # Create two columns with different ratios
-    col_input, col_viewer = st.columns([1, 2], gap="large")
+    st.markdown('<h1 class="main-header">📝 Text Summarization</h1>', unsafe_allow_html=True)
+    # Create tabs for URL and File Upload
+    tab1, tab2 = st.tabs(["🔗 PDF from URL", "📁 Upload PDF File"])
     
-    with col_input:
-        # Input section with beautiful container
-        st.markdown('<div class="floating-card">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-header">📎 PDF Input</h2>', unsafe_allow_html=True)
-        
+    with tab1:
+        # 1. SINGLE URL input – top of page
         pdf_url = st.text_input(
             "🔗 Enter PDF URL:",
-            value=st.session_state.pdf_url,
+            value=st.session_state.get("pdf_url", ""),
             placeholder="Paste your PDF link here...",
-            help="Enter a direct link to your PDF file"
+            help="Enter a direct link to your PDF file",
+            key="unique_pdf_url_input",
         )
         st.session_state.pdf_url = pdf_url
-        
-        # Stylish button
-        if st.button("✨ Generate Summary", use_container_width=True, type="primary"):
+
+        # --- Đường kẻ phân cách 1 (ngay dưới URL) ---
+        st.markdown('<hr style="margin:0.5rem 0 1.5rem 0;">', unsafe_allow_html=True)
+
+        # --- Layout: viewer | controls + comparison ----------------------
+        col_viewer, col_controls = st.columns([1.6, 1], gap="large")
+
+        # --- LEFT: PDF viewer -------------------------------------------
+        with col_viewer:
+            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
             if pdf_url:
-                with st.spinner("📄 Processing PDF..."):
-                    try:
-                        response = requests.post(
-                            "http://1.53.58.232:8521/summarize_pdf",
-                            json={"pdf_url": pdf_url},
-                            timeout=150
-                        )
-                        if response.status_code == 200:
-                            result = response.json()
-                            if "summary" in result:
-                                st.success("✅ Summary completed!")
-                                # Store model summary separately from sample summary
-                                st.session_state.model_summary = result["summary"]
-                            else:
-                                st.session_state.model_summary = "No summary data available."
-                        else:
-                            st.session_state.model_summary = f"Error: {response.status_code}"
-                    except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
-                        st.session_state.model_summary = f"Error: {str(e)}"
+                try:
+                    with st.spinner("📄 Loading PDF…"):
+                        pdf_data = requests.get(pdf_url, timeout=30).content
+                        b64 = base64.b64encode(pdf_data).decode()
+                    st.markdown(
+                        f"""
+                        <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;">
+                            <iframe src="data:application/pdf;base64,{b64}"
+                                    width="100%" height="1000" style="border:none;"></iframe>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                except Exception:
+                    st.error("❌ Unable to load PDF. Check the URL and try again.")
             else:
-                st.warning("⚠️ Please enter a PDF URL first")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Summary section with comparison
-        if st.session_state.pdf_summary or (hasattr(st.session_state, 'model_summary') and st.session_state.model_summary):
-            st.markdown('<div class="floating-card" style="margin-top: 2rem;">', unsafe_allow_html=True)
-            st.markdown('<h2 class="section-header">📝 Summary Comparison</h2>', unsafe_allow_html=True)
-            
-            # Create tabs for comparison
-            tab1, tab2 = st.tabs(["📋 Sample Summary", "🤖 Model Generated"])
-            
-            with tab1:
-                if st.session_state.pdf_summary:
-                    st.markdown(
-                        f"""
-                        <div class="summary-box" style="background-color: #f8f9fa; border-left: 4px solid #007bff;">
-                            {st.session_state.pdf_summary}
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                st.markdown(
+                    """
+                    <div style="text-align:center;padding:4rem;">
+                        <div style="font-size:4rem;margin-bottom:1rem;">📄</div>
+                        <h3 style="color:#666;margin-bottom:1rem;">No PDF Selected</h3>
+                        <p style="color:#999;">Enter a PDF URL to view the document</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        # --- RIGHT: controls & summaries --------------------------------
+        with col_controls:
+            # A. Generate button for URL
+            if st.button("✨ Generate Summary", use_container_width=True, type="primary", key="url_summary"):
+                if pdf_url:
+                    with st.spinner("📄 Processing PDF…"):
+                        try:
+                            resp = requests.post(
+                                "http://1.53.58.232:8521/summarize_pdf",
+                                json={"pdf_url": pdf_url},
+                                timeout=150,
+                            )
+                            st.session_state.model_summary = (
+                                resp.json().get("summary", "No summary data available.")
+                                if resp.status_code == 200
+                                else f"Error: {resp.status_code}"
+                            )
+                        except Exception as e:
+                            st.session_state.model_summary = f"Error: {e}"
                 else:
-                    st.info("📋 Sample summary will appear here when you select an example")
+                    st.warning("⚠️ Please enter a PDF URL first")
+
+            # B. Examples with Individual Sample Summaries
+            st.markdown('<h3 class="section-header" style="margin-top:2rem;">📌 Examples</h3>', unsafe_allow_html=True)
             
-            with tab2:
-                if hasattr(st.session_state, 'model_summary') and st.session_state.model_summary:
-                    st.markdown(
-                        f"""
-                        <div class="summary-box" style="background-color: #f0fff4; border-left: 4px solid #28a745;">
-                            {st.session_state.model_summary}
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.info("🤖 Model-generated summary will appear here after clicking 'Generate Summary'")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Example buttons section
-        st.markdown('<div class="floating-card" style="margin-top: 2rem;">', unsafe_allow_html=True)
-        st.markdown('<h3 class="section-header">📌 Examples</h3>', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("📌 example 1", use_container_width=True):
-                st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/176983/VanBanGoc_645029.pdf"
-                # Set sample summary for example 1
-                st.session_state.pdf_summary = """
+            # Define sample summaries for each example
+            sample_summaries = {
+                "example1": """
 **TÓM TẮT VĂN BẢN** \n
 Tên văn bản: Thông tư số …/2025/TT-BTNMT ban hành Quy chuẩn kỹ thuật quốc gia về nước thải sinh hoạt và nước thải đô thị, khu dân cư tập trung (QCVN 14:2025/BTNMT).
 Cơ quan ban hành: Bộ Tài nguyên và Môi trường.
@@ -372,13 +362,9 @@ Phụ lục 1: Danh mục loại hình kinh doanh, dịch vụ được quản l
 Phụ lục 2: Phương pháp lấy mẫu, phân tích các thông số ô nhiễm trong nước thải.\n
 
 Thông tư 2025/TT-BTNMT ban hành QCVN 14:2025/BTNMT quy định giới hạn các thông số ô nhiễm trong nước thải sinh hoạt và nước thải đô thị, thay thế QCVN 14:2008/BTNMT. Văn bản đưa ra lộ trình áp dụng đến 2032, quy định chi tiết về giới hạn kỹ thuật, phương pháp quan trắc, trách nhiệm của cơ quan quản lý và cơ sở xả thải, đồng thời kèm phụ lục về loại hình áp dụng và phương pháp thử nghiệm.
-                """
-                st.rerun()
-        with col2:
-            if st.button("📌 example 2", use_container_width=True):
-                st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/175320/VanBanGoc_2025.%20TT%20Dieutra%20dien%20NL%20tai%20tao.pdf"
-                # Set sample summary for example 2
-                st.session_state.pdf_summary = """
+                """,
+                
+                "example2": """
 **TÓM TẮT VĂN BẢN**\n
 Tên văn bản: Thông tư số …/2025/TT-BTNMT quy định chi tiết phạm vi điều tra cơ bản về tài nguyên điện năng lượng tái tạo và năng lượng mới.
 Cơ quan ban hành: Bộ Tài nguyên và Môi trường.
@@ -416,13 +402,9 @@ Bộ, ngành, địa phương, tổ chức, cá nhân liên quan có trách nhi�
 Vướng mắc báo cáo Bộ TN&MT để xử lý.
 
 Thông tư 2025/TT-BTNMT quy định chi tiết phạm vi điều tra cơ bản về tài nguyên điện năng lượng tái tạo và năng lượng mới (mặt trời, gió, địa nhiệt, sóng biển, thủy triều, chất thải, sinh khối, thủy điện). Điều tra nhằm phục vụ quy hoạch điện lực, an ninh năng lượng, phát triển bền vững, với kết quả là báo cáo, bản đồ phân bố tiềm năng và cơ sở dữ liệu quốc gia.
-                """
-                st.rerun()
-        with col3:
-            if st.button("📌 example 3", use_container_width=True):
-                st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/177810/VanBanGoc_03-bnnmt.pdf"
-                # Set sample summary for example 3
-                st.session_state.pdf_summary = """
+                """,
+                
+                "example3": """
 **TÓM TẮT VĂN BẢN**\n
 Tên văn bản: Thông tư số …/2025/TT-BNNMT sửa đổi, bổ sung Thông tư số 25/2024/TT-BNNPTNT ngày 16/12/2024.
 Cơ quan ban hành: Bộ Nông nghiệp và Môi trường.
@@ -452,52 +434,164 @@ Nếu có khó khăn, vướng mắc thì phản ánh về Bộ Nông nghiệp v
 
 Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ thực vật theo Thông tư 25/2024, gồm điều chỉnh thông tin 40 thương phẩm/hoạt chất, bổ sung gần 300 hoạt chất với hơn 400 tên thương phẩm mới được phép sử dụng, đồng thời quy định áp dụng mã số HS thống nhất.
                 """
-                st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col_viewer:
-        if pdf_url:
-            st.markdown('<div class="floating-card">', unsafe_allow_html=True)
-            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
+            }
             
-            try:
-                with st.spinner("📄 Loading PDF..."):
-                    pdf_data = requests.get(pdf_url, timeout=30).content
-                    base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-                    
-                # Simple PDF viewer
+            ex1, ex2, ex3 = st.columns(3)
+            with ex1:
+                if st.button("📌 Example 1", use_container_width=True, key="ex1_url"):
+                    st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/176983/VanBanGoc_645029.pdf"
+                    st.session_state.pdf_summary = sample_summaries["example1"]
+                    st.rerun()
+            with ex2:
+                if st.button("📌 Example 2", use_container_width=True, key="ex2_url"):
+                    st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/175320/VanBanGoc_2025.%20TT%20Dieutra%20dien%20NL%20tai%20tao.pdf"
+                    st.session_state.pdf_summary = sample_summaries["example2"]
+                    st.rerun()
+            with ex3:
+                if st.button("📌 Example 3", use_container_width=True, key="ex3_url"):
+                    st.session_state.pdf_url = "https://vbpl.vn/FileData/TW/Lists/vbpq/Attachments/177810/VanBanGoc_03-bnnmt.pdf"
+                    st.session_state.pdf_summary = sample_summaries["example3"]
+                    st.rerun()
+
+            # --- Đường kẻ phân cách 2 (ngay dưới ví dụ) ---
+            st.markdown('<hr style="margin:2rem 0;">', unsafe_allow_html=True)
+
+            # C. Summary comparison (scrollable) for URL tab
+            if st.session_state.get("pdf_summary") or st.session_state.get("model_summary"):
+                st.markdown('<h3 class="section-header">📝 Summary Comparison</h3>', unsafe_allow_html=True)
+                g, m = st.columns(2)
+                with g:
+                    st.markdown(
+                        '<div style="border-left:4px solid #007bff;padding:1rem;border-radius:8px;'
+                        'background:#f8f9fa;max-height:60vh;overflow-y:auto;">'
+                        "<h4>Sample Summary</h4><pre style='white-space:pre-wrap;font-size:0.95rem'>"
+                        f"{st.session_state.get('pdf_summary','📋 Select an example')}</pre></div>",
+                        unsafe_allow_html=True,
+                    )
+                with m:
+                    st.markdown(
+                        '<div style="border-left:4px solid #28a745;padding:1rem;border-radius:8px;'
+                        'background:#f0fff4;max-height:60vh;overflow-y:auto;">'
+                        "<h4>Model Generated</h4><pre style='white-space:pre-wrap;font-size:0.95rem'>"
+                        f"{st.session_state.get('model_summary','🤖 Click Generate Summary')}</pre></div>",
+                        unsafe_allow_html=True,
+                    )
+
+    with tab2:
+        # File upload section
+        uploaded_file = st.file_uploader(
+            "📁 Choose a PDF file:",
+            type=['pdf'],
+            help="Upload a PDF file from your computer",
+            key="pdf_file_uploader"
+        )
+        
+        # --- Đường kẻ phân cách ---
+        st.markdown('<hr style="margin:0.5rem 0 1.5rem 0;">', unsafe_allow_html=True)
+
+        # --- Layout: viewer | controls + comparison ----------------------
+        col_viewer_upload, col_controls_upload = st.columns([1.6, 1], gap="large")
+
+        # --- LEFT: PDF viewer for uploaded file ---
+        with col_viewer_upload:
+            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
+            if uploaded_file is not None:
+                try:
+                    # Display the uploaded PDF
+                    pdf_bytes = uploaded_file.read()
+                    b64 = base64.b64encode(pdf_bytes).decode()
+                    st.markdown(
+                        f"""
+                        <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;">
+                            <iframe src="data:application/pdf;base64,{b64}"
+                                    width="100%" height="1000" style="border:none;"></iframe>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    # Reset file pointer for later use
+                    uploaded_file.seek(0)
+                except Exception as e:
+                    st.error(f"❌ Unable to display PDF: {str(e)}")
+            else:
                 st.markdown(
-                    f"""
-                    <div style="border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
-                        <iframe src="data:application/pdf;base64,{base64_pdf}" 
-                               width="100%" 
-                               height="800" 
-                               type="application/pdf"
-                               style="border: none;">
-                        </iframe>
+                    """
+                    <div style="text-align:center;padding:4rem;">
+                        <div style="font-size:4rem;margin-bottom:1rem;">📁</div>
+                        <h3 style="color:#666;margin-bottom:1rem;">No PDF Uploaded</h3>
+                        <p style="color:#999;">Upload a PDF file to view the document</p>
                     </div>
                     """,
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
-            except:
-                st.error("❌ Unable to load PDF. Please check the URL and try again.")
+
+        # --- RIGHT: controls & summaries for uploaded file --------------------------------
+        with col_controls_upload:
+            # A. Generate button for uploaded file
+            if st.button("✨ Generate Summary", use_container_width=True, type="primary", key="file_summary"):
+                if uploaded_file is not None:
+                    with st.spinner("📄 Processing uploaded PDF…"):
+                        try:
+                            # Reset file pointer
+                            uploaded_file.seek(0)
+                            
+                            # Prepare the file for upload to API
+                            files = {"file": (uploaded_file.name, uploaded_file.read(), "application/pdf")}
+                            
+                            # Send to your API endpoint
+                            resp = requests.post(
+                                "http://1.53.58.232:8521/upload_pdf",
+                                files=files,
+                                timeout=150,
+                            )
+                            
+                            if resp.status_code == 200:
+                                st.session_state.model_summary_upload = resp.json().get("summary", "No summary data available.")
+                            else:
+                                st.session_state.model_summary_upload = f"Error: {resp.status_code} - {resp.text}"
+                                
+                        except Exception as e:
+                            st.session_state.model_summary_upload = f"Error: {e}"
+                        finally:
+                            # Reset file pointer again
+                            uploaded_file.seek(0)
+                else:
+                    st.warning("⚠️ Please upload a PDF file first")
+
+            # B. File info
+            if uploaded_file is not None:
+                st.markdown('<h3 class="section-header" style="margin-top:2rem;">📄 File Info</h3>', unsafe_allow_html=True)
+                file_details = {
+                    "📋 Filename": uploaded_file.name,
+                    "📊 File size": f"{uploaded_file.size / 1024:.1f} KB",
+                    "🏷️ File type": uploaded_file.type
+                }
+                
+                for label, value in file_details.items():
+                    st.markdown(f"**{label}:** {value}")
+
+            # --- Đường kẻ phân cách 2 (ngay dưới file info) ---
+            st.markdown('<hr style="margin:2rem 0;">', unsafe_allow_html=True)
+
+            # C. Summary display for uploaded file
+            if st.session_state.get("model_summary_upload"):
+                st.markdown('<h3 class="section-header">📝 Generated Summary</h3>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div style="border-left:4px solid #28a745;padding:1rem;border-radius:8px;'
+                    'background:#f0fff4;max-height:60vh;overflow-y:auto;">'
+                    "<h4>Model Generated Summary</h4><pre style='white-space:pre-wrap;font-size:0.95rem'>"
+                    f"{st.session_state.get('model_summary_upload','')}</pre></div>",
+                    unsafe_allow_html=True,
+                )
             
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            # Placeholder when no PDF is loaded
-            st.markdown(
-                """
-                <div class="floating-card" style="text-align: center; padding: 4rem;">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">📄</div>
-                    <h3 style="color: #666; margin-bottom: 1rem;">No PDF Selected</h3>
-                    <p style="color: #999;">Enter a PDF URL to view the document here</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            # D. Clear results button
+            if st.session_state.get("model_summary_upload"):
+                if st.button("🗑️ Clear Results", use_container_width=True, key="clear_upload_results"):
+                    if "model_summary_upload" in st.session_state:
+                        del st.session_state.model_summary_upload
+                    st.rerun()
 
-
+                    
 ############################## phan loai
 
 
@@ -723,50 +817,52 @@ elif function_choice == "🏷️ Document Classification":
 
 ##################################### chatbot
 
+
 elif function_choice == "💬 Q&A Chatbot":
+    #st.markdown('<h1 class="main-header">🤖 Q&A Chatbot</h1>', unsafe_allow_html=True)
     # Session state initialization
     st.session_state.setdefault("messages", [])
     st.session_state.setdefault("selected_question", None)
+    st.session_state.setdefault("gold_answer", "")
+    st.session_state.setdefault("model_answer", "")
 
     # Questions data with complete answers
     QUESTIONS = [
         {
             "icon": "🌱", 
-            "title": "Tăng cường kiểm tra, giám sát môi trường và ứng dụng công nghệ xử lý rác", 
-            "text": "Quick Question 1",
+            "title": "Tăng cường kiểm tra môi trường", 
             "question": "Cử tri đề nghị Bộ Tài nguyên và Môi trường chỉ đạo tăng cường kiểm tra, giám sát chặt chẽ về môi trường làng nghề, doanh nghiệp xả thải lớn trên toàn quốc và có chiến lược nghiên cứu ứng dụng khoa học công nghệ xử lý rác thải đảm bảo môi trường để các địa phương đưa vào áp dụng xử lý tại chỗ đạt yêu cầu",
-            "answer": """Việc tăng cường kiểm tra, giám sát chặt chẽ về môi trường đối với các doanh nghiệp xả thải lớn, làng nghề là trách nhiệm không chỉ của Bộ Tài nguyên và Môi trường mà còn của các địa phương, đã được quy định cụ thể trong các văn bản quy phạm pháp luật, văn bản chỉ đạo như Nghị định số 19/2015/NĐ-CP ngày 14/02/2015 của Chính phủ quy định chi tiết thi hành một số Điều của Luật bảo vệ môi trường, Chỉ thị số 25/CT-TTg ngày 31/8/2016 của Thủ tướng Chính phủ về một số nhiệm vụ, giải pháp cấp bách về bảo vệ môi trường. Hiện nay, Bộ Tài nguyên và Môi trường đã xây dựng Đề án kiểm soát đặc biệt đối với các nguồn thải lớn đã được Thủ tướng Chính phủ phê duyệt và sẽ tổ chức thực hiện trong năm 2018 và các năm tiếp theo. Đối với kiến nghị về chiến lược nghiên cứu ứng dụng khoa học công nghệ xử lý rác thải đảm bảo môi trường để các địa phương đưa vào áp dụng xử lý tại chỗ đạt yêu cầu: về cơ bản hiện nay ở Việt Nam đã có đầy đủ các công nghệ để xử lý mọi loại chất thải đặc thù phát sinh từ các hoạt động sản xuất, kinh doanh, dịch vụ cũng như các loại chất thải sinh hoạt. Với vai trò quản lý nhà nước về bảo vệ môi trường, Bộ Tài nguyên và Môi trường cũng đã ban hành Quy chuẩn kỹ thuật quốc gia về lò đốt chất thải rắn sinh hoạt (QCVN 61-MT:2016/BTNMT). Theo quy định tại Khoản i Mục 6 Điều 2 Nghị định số 20/2013/NĐ-CP ngày 26/2/2014 của Chính phủ quy định chức năng, nhiệm vụ, quyền hạn và cơ cấu tổ chức của Bộ Khoa học và Công nghệ; Khoản 3 Điều 27 Nghị định số 38/2015/NĐ-CP ngày 24/4/2015 của Chính phủ về quản lý chất thải và phế liệu, hiện nay Bộ Khoa học và Công nghệ là cơ quan được giao chủ trì hướng dẫn việc đánh giá, thẩm định công nghệ nói chung, thẩm định công nghệ xử lý chất thải rắn sinh hoạt mới được nghiên cứu và áp dụng lần đầu ở Việt Nam và đề xuất công nghệ xử lý chất thải rắn tiên tiến, hiệu quả để triển khai áp dụng nói riêng. Ngoài ra, tại Quyết định số 798/QĐ-TTg ngày 25/5/2011 của Thủ tướng Chính phủ phê duyệt Chương trình đầu tư xử lý chất thải rắn giai đoạn 2011 - 2020 trong đó giao Bộ Khoa học và Công nghệ rà soát, đánh giá, tổ chức nghiên cứu, đề xuất công nghệ xử lý chất thải rắn tiên tiến, hiệu quả để triển khai áp dụng."""
-        },
-        {
-            "icon": "🏡", 
-            "title": "Xử lý rác thải nông thôn, hỗ trợ địa phương và tăng chế tài xử phạt", 
-            "text": "Quick Question 2",
-            "question": "Tình trạng rác thải ở nông thôn rất lớn, không còn nơi chôn lấp, không có kinh phí để đầu tư công nghệ đốt, xử lý rác thải, gây ô nhiễm môi trường, ảnh hưởng đến sức khỏe của nhân dân. Đề nghị Chính phủ có phương án xử lý, khắc phục, thực hiện nghiêm túc quy trình xử lý rác thải; có cơ chế, chính sách hỗ trợ các địa phương trong việc xử lý rác thải; đồng thời, ban hành chế tài xử phạt vi phạm, ô nhiễm môi trường với xu hướng nghiêm khắc hơn, có tính răn đe cao để ngăn ngừa các hành vi vi phạm pháp luật môi trường tái diễn.",
-            "answer": "Chính phủ đã ban hành Nghị định số 38/2015/NĐ-CP ngày 24/4/2015 về quản lý chất thải và phế liệu; Bộ Tài nguyên và Môi trường đã ban hành Quy chuẩn kỹ thuật quốc gia về nước thải bãi chôn lấp chất thải rắn (QCVN 25 :2009/BTNMT); Quy chuẩn kỹ thuật quốc gia về lò đốt chất thải rắn sinh hoạt (QCVN 61-MT: 2016/BTNMT);... Bên cạnh đó, Bộ Tài nguyên và Môi trường tham mưu, trình Chính phủ ban hành nhiều cơ chế, chính sách nhằm khuyến khích, ưu đãi, hỗ trợ dự án đầu tư xử lý chất thải rắn, cụ thể: - Nghị định số 19/2015/NĐ-CP ngày 14/02/2015 của Chính phủ quy định chi tiết thi hành một số điều của Luật bảo vệ môi trường đã quy định các chính sách hỗ trợ kinh phí cho hoạt động xử lý chất thải rắn (hỗ trợ về đầu tư xây dựng các công trình hạ tầng; ưu đãi về tiền thuê đất; hỗ trợ tiền bồi thường, giải phóng mặt bằng; ưu đãi về thuế thu nhập doanh nghiệp,…); - Nghị định số 15/2015/NĐ-CP ngày 14/02/2015 của Chính phủ về đầu tư theo hình thức đối tác công tư cũng quy định đối với lĩnh vực đầu tư vào hệ thống thu gom, xử lý nước thải, chất thải, các địa phương có thêm kênh thu hút vốn để tháo gỡ nút thắt trong các dự án đầu tư cơ sở xử lý chất thải rắn). Song song với các giải pháp về mặt chính sách, Bộ Tài nguyên và Môi trường đã triển khai thử nghiệm mô hình thu gom, vận chuyển và xử lý chất thải rắn sinh hoạt khu vực nông thôn; đã tổ chức các hoạt động truyền thông nâng cao nhận thức của người dân; đào tạo và tổ chức các khoá tập huấn cho doanh nghiệp về sản xuất sạch hơn, hoạt động giảm thiểu phát sinh chất thải rắn; quy trình thu gom, vận chuyển, xử lý, tái chế chất thải rắn theo đúng các quy định của pháp luật. Hàng năm, Bộ Tài nguyên và Môi trường chủ trì, phối hợp với UBND cấp tỉnh trình Thủ tướng Chính phủ phê duyệt nguồn kinh phí hỗ trợ từ ngân sách nhà nước đối với các cơ sở gây ô nhiễm môi trường nghiêm trọng. Ủy ban nhân dân cấp tỉnh đã ban hành quy hoạch quản lý chất thải rắn, quy định cụ thể về quản lý chất thải rắn sinh hoạt trên địa bàn cho phù hợp với thực tế của địa phương. Tỷ lệ thu gom, xử lý chất thải rắn tại các khu vực nông thôn tăng dần theo các năm. - Đối với kiến nghị “ban hành chế tài xử phạt vi phạm, ô nhiễm môi trường với xu hướng nghiêm khắc hơn, có tính răn đe cao để ngăn ngừa các hành vi vi phạm pháp luật môi trường tài diễn”: Bộ Tài nguyên và Môi trường đã tham mưu cho Chính phủ ban hành Nghị định số 155/2016/NĐ-CP ngày 18/11/2016 về xử phạt vi phạm hành chính trong lĩnh vực bảo vệ môi trường. Nghị định 155/2016/NĐ-CP được ban hành sẽ tác động mạnh mẽ đến ý thức và nhận thức của cá nhân, tổ chức trong công tác bảo vệ môi trường; buộc các cá nhân, tổ chức phải đầu tư kinh phí cho công tác bảo vệ môi trường trong quá trình hoạt động sản xuất, kinh doanh và dịch vụ trên lãnh thổ Việt Nam. Mức phạt tiền của Nghị định số 155/2016/NĐ-CP được xây dựng theo quy định của Luật Xử lý vi phạm hành chính. Hiện nay, mức phạt tiền đối với hành vi vi phạm hành chính về bảo vệ môi trường là cao nhất trong các lĩnh vực xử lý vi phạm hành chính ở Việt Nam (mức phạt tiền từ cảnh cáo đến 01 tỷ đồng đối với cá nhân và 02 tỷ đồng đối với tổ chức). Trước đây, Nghị định số 179/2013/NĐ-CP đã có tính răn đe cao, tuy nhiên Nghị định số 155/2016/NĐ-CP hiện nay còn có tính răn đe cao hơn đối với các hành vi cố ý gây ô nhiễm môi trường (như trước đây hành vi xả nước thải vượt quy chuẩn cho phép trên 10 lần với lưu lượng nước thải trên 10.000 m3/ngày đêm thì mức phạt tiền là tối đa, hiện nay chỉ cần xả nước thải vượt trên 10 lần với lưu lượng lớn hơn 5.000 m3/ngày.đêm nhưng dưới mức tội phạm môi trường theo quy định của Bộ luật Hình sự thì đã bị xử phạt ở mức tối đa). Bên cạnh hình thức phạt tiền, Nghị định số 155/2016/NĐ-CP còn quy định các hình thức xử phạt bổ sung (đình chỉ hoạt động, tước quyền sử dụng giấy phép môi trường, tịch thu tang vật vi phạm), biện pháp khắc phục hậu quả (buộc khắc phục lại tình trang ô nhiễm môi trường đã bị ô nhiễm và phục hồi môi trường bị ô nhiễm) và công khai thông tin đối với hành vi vi phạm nghiêm trọng, gây ô nhiễm môi trường hoặc tác động xấu đến xã hội,… Ngoài công cụ xử phạt vi phạm hành chính theo Nghị định 155/2016/NĐ-CP nêu trên, Quốc hội đã thông qua Bộ Luật hình sự số 100/2015/QH13 và Luật sửa đổi, bổ sung một số điều của Bộ luật hình sự năm 2015, trong đó đã định lượng các hành vi vi phạm gây ô nhiễm môi trường để xử lý trách nhiệm đối với cá nhân, tổ chức vi phạm. Đây là một công cụ hữu hiệu để răn đe cá nhân, tổ chức cố tình trốn tránh trách nhiệm để thực hiện các hành vi cố ý gây ô nhiễm môi trường."
+            "answer": """Việc tăng cường kiểm tra, giám sát chặt chẽ về môi trường đối với các doanh nghiệp xả thải lớn, làng nghề là trách nhiệm không chỉ của Bộ Tài nguyên và Môi trường mà còn của các địa phương, đã được quy định cụ thể trong các văn bản quy phạm pháp luật, văn bản chỉ đạo như Nghị định số 19/2015/NĐ-CP ngày 14/02/2015 của Chính phủ quy định chi tiết thi hành một số Điều của Luật bảo vệ môi trường, Chỉ thị số 25/CT-TTg ngày 31/8/2016 của Thủ tướng Chính phủ về một số nhiệm vụ, giải pháp cấp bách về bảo vệ môi trường. Hiện nay, Bộ Tài nguyên và Môi trường đã xây dựng Đề án kiểm soát đặc biệt đối với các nguồn thải lớn đã được Thủ tướng Chính phủ phê duyệt và sẽ tổ chức thực hiện trong năm 2018 và các năm tiếp theo."""
         },
         {
             "icon": "🗺️", 
-            "title": "Quy hoạch quỹ đất và sắp xếp khu dân cư cho đồng bào dân tộc", 
-            "text": "Quick Question 3",
+            "title": "Quy hoạch quỹ đất dân tộc", 
             "question": "Đề nghị Nhà nước quy hoạch quỹ đất, sắp xếp lại các khu dân cư đồng bào Mông, Dao, Khơ Mú hiện nay đang sống ở khu vực đồi, núi cao, nhỏ lẻ chuyển xuống khu vực thấp hơn sinh sống tập trung khoa học, hợp lý để khai hoang ruộng bậc thang cho đồng bào canh tác trồng lúa nước, trồng màu cạn, trồng rừng…để ổn định đời sống và có điều kiện phát triển.",
-            "answer": "Để đáp ứng quỹ đất cho nhu cầu về nhà ở, đất sản xuất nông nghiệp, Bộ Tài nguyên và Môi trường đã trình Chính phủ để trình Quốc hội ban hành Nghị quyết số 134/2016/QH13 phê duyệt điều chỉnh quy hoạch sử dụng đất đến năm 2020 và kế hoạch sử dụng đất kỳ cuối (2016-2020) cấp quốc gia trong đó có bố trí quỹ ở, đất sản xuất nông nghiệp cho các nhu cầu phát triển kinh tế - xã hội cũng như giải quyết quỹ đất cho đồng bào dân tộc thiểu số. Đồng thời, Bộ cũng đã thẩm định trình Chính phủ xem xét phê duyệt điều chỉnh quy hoạch sử dụng đất đến năm 2020 và kế hoạch sử dụng đất kỳ cuối (2016-2020) tỉnh Thanh Hóa (Tờ trình số 93/TTR-BTNMT ngày 16/11/2017). Trên cơ sở, điều chỉnh quy hoạch sử dụng đất đến năm 2020 và kế hoạch sử dụng đất kỳ cuối (2016-2020) của tỉnh được phê duyệt, Ủy ban nhân dân tỉnh Thanh Hóa chỉ đạo Ủy ban nhân dân các huyện triển khai lập điều chỉnh quy hoạch, kế hoạch sử dụng đất cấp huyện làm căn cứ để thực hiện chính sách giao đất cho đồng bào Mông, Dao, Khơ Mú trên địa bàn."
+            "answer": "Để đáp ứng quỹ đất cho nhu cầu về nhà ở, đất sản xuất nông nghiệp, Bộ Tài nguyên và Môi trường đã trình Chính phủ để trình Quốc hội ban hành Nghị quyết số 134/2016/QH13 phê duyệt điều chỉnh quy hoạch sử dụng đất đến năm 2020 và kế hoạch sử dụng đất kỳ cuối (2016-2020) cấp quốc gia trong đó có bố trí quỹ ở, đất sản xuất nông nghiệp cho các nhu cầu phát triển kinh tế - xã hội cũng như giải quyết quỹ đất cho đồng bào dân tộc thiểu số."
         },
         {
             "icon": "📜", 
-            "title": "Giao đất các nông trường cho người dân quản lý, sử dụng", 
-            "text": "Quick Question 4",
+            "title": "Giao đất nông trường", 
             "question": "Các xã: Thành Vân, Vân Du, Thành Tâm huyện Thạch Thành, tỉnh Thanh Hóa đề nghị các ngành có liên quan giải quyết giao đất của các Nông trường Thành Vân, Vân Du, Thành Tâm cho người dân quản lý, sử dụng",
-            "answer": "Theo quy định tại Điều 59 và Điều 66 Luật đất đai hiện hành thì vấn đề của tri kiến nghị thuộc thẩm quyền của Ủy ban nhân dân cấp tỉnh, cấp huyện. Đối với chỉ đạo của Trung ương, Bộ Tài nguyên và Môi trường báo cáo thêm như sau: Thực hiện Nghị quyết số 28-NQ/TW, Nghị định số 170/2004/NĐ-CP, Nghị định số 200/2004/NĐ-CP và Nghị định số 118/2014/NĐ-CP, các địa phương phải rà soát lại đất đai, bàn giao về địa phương phần diện tích đất sử dụng sai mục đích, kém hoặc không hiệu quả (bàn giao một phần đất hoặc toàn bộ - giải thể). Các địa phương phải xây dựng phương án sử dụng đất đối với diện tích đất này để để giao lại cho tổ chức, hộ gia đình, cá nhân hoặc chuyển thành BQL rừng... Đối với tỉnh Thanh Hóa, số liệu đất bàn giao hoặc dự kiến bàn giao về địa phương từ năm 2004 đến nay khoảng 14.675 ha (trong đó bao gồm phần diện tích đất các nông trường trên địa bàn huyện Thạch Thành bàn giao về địa phương), nhưng đến nay địa phương vẫn chưa xây dựng và tổ chức thực hiện phương án sử dụng quỹ đất này. Thực hiện Nghị quyết số 112/2015/NQ-QH13 của Quốc hội và Bộ Tài nguyên và Môi trường đã trình Thủ tướng Chính phủ ban hành Chỉ thị số 11/CT-TTg trong đó yêu cầu Ủy ban nhân dân các tỉnh, thành phố trực thuộc Trung ương tiếp nhận và có phương án đối với quỹ đất bàn giao lại cho các địa phương, đồng thời phải xây dựng và thực hiện Đề án “Tăng cường quản lý đối với đất đai có nguồn gốc từ các nông, lâm trường quốc doanh hiện do các công ty nông nghiệp, công ty lâm nghiệp không thuộc diện sắp xếp lại theo Nghị định số 118/2014/NĐ-CP, ban quản lý rừng và các tổ chức sự nghiệp khác, hộ gia đình, cá nhân sử dụng” (Đề án), trong đó bao gồm nội dung rà soát, xây dựng và thực hiện phương án sử dụng quỹ đất các nông, lâm trường bàn giao về địa phương. Bộ Tài nguyên và Môi trường đã trình Thủ tướng Chính phủ phê duyệt Đề án Tăng cường quản lý đối với đất đai có nguồn gốc từ các nông, lâm trường quốc doanh hiện do các công ty nông nghiệp, công ty lâm nghiệp không thuộc diện sắp xếp lại theo Nghị định số 118/2014/NĐ-CP, ban quản lý rừng và các tổ chức sự nghiệp khác, hộ gia đình, cá nhân sử dụng (Tờ trình số 21/TTR-BTNMT ngày 10/5/2017) và đã được Thủ tướng Chính phủ đồng ý về nội dung."
+            "answer": "Theo quy định tại Điều 59 và Điều 66 Luật đất đai hiện hành thì vấn đề của cử tri kiến nghị thuộc thẩm quyền của Ủy ban nhân dân cấp tỉnh, cấp huyện. Đối với chỉ đạo của Trung ương, Bộ Tài nguyên và Môi trường báo cáo thêm: Thực hiện Nghị quyết số 28-NQ/TW, Nghị định số 170/2004/NĐ-CP, Nghị định số 200/2004/NĐ-CP và Nghị định số 118/2014/NĐ-CP, các địa phương phải rà soát lại đất đai, bàn giao về địa phương phần diện tích đất sử dụng sai mục đích, kém hoặc không hiệu quả."
         }
     ]
 
-    def send_message(text: str) -> None:
+    def send_message(text: str, is_example: bool = False, example_index: int = None) -> None:
         """Send a message and fetch AI response."""
         if not text.strip():
             return
         
+        # Add user message
         st.session_state.messages.append({"role": "user", "content": text})
         
+        # If this is an example question, set the gold answer
+        if is_example and example_index is not None:
+            st.session_state.gold_answer = QUESTIONS[example_index]["answer"]
+        else:
+            st.session_state.gold_answer = ""
+        
+        # API call to get model response
         payload = {
             "fallback_response": "Hiện mình chưa có đủ thông tin để trả lời yêu cầu của bạn. Bạn vui lòng mô tả thêm một chút nhé!",
             "query": text,
@@ -774,93 +870,202 @@ elif function_choice == "💬 Q&A Chatbot":
             "history": [], "slots": [], "activate_slots": False, "activate_history": False
         }
         
-        with st.spinner("🔍 AI is thinking..."):
+        with st.spinner("🤖 AI đang suy nghĩ..."):
             try:
                 response = requests.post("http://1.53.58.232:5558/chatbot-answer/", json=payload, timeout=300)
                 answer = response.json().get("message", "No response available") if response.status_code == 200 else f"⚠️ Service unavailable ({response.status_code})"
             except requests.RequestException:
                 answer = "🔌 Connection issue. Please try again."
         
+        # Store model answer and add to messages
+        st.session_state.model_answer = answer
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.session_state.selected_question = None
         st.rerun()
 
-    # Header
-    total_conversations = len(st.session_state.messages) // 2
-    st.markdown(f"""
-    <div class="header">
-        <h1>🤖 AI Q&A Assistant</h1>
-        <p>Get intelligent answers to your questions instantly</p>
-        <div class="stats">
-            <div class="stat"><strong>{total_conversations}</strong><br>Conversations</div>
-            <div class="stat"><strong>{len(st.session_state.messages)}</strong><br>Messages</div>
-            <div class="stat"><strong>🟢</strong><br>Online</div>
-        </div>
+    # Beautiful Header
+    st.markdown("""
+    <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding:2rem;border-radius:15px;margin-bottom:2rem;color:white;text-align:center;">
+        <h1 style="margin:0;font-size:2.5rem;">🤖 AI Q&A Assistant</h1>
+        <p style="margin:0.5rem 0 0 0;font-size:1.2rem;opacity:0.9;">
+            Hỏi đáp thông minh với AI - So sánh câu trả lời chuẩn và AI
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Layout
-    cols = [2, 1.5, 1] if st.session_state.selected_question is not None else [3, 1]
-    col_chat, *other_cols = st.columns(cols)
+    # Main Layout: Chat + Question Selection
+    col_chat, col_sidebar = st.columns([2.5, 1])
 
-    # Chat Section
+    # === CHAT SECTION ===
     with col_chat:
-        st.markdown('<div class="chat-box">', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown("### 💬 Chat Interface")
-        with col2:
-            if st.button("🗑️ Clear", key="clear_chat"):
+        # Chat header with stats
+        chat_header_col1, chat_header_col2 = st.columns([3, 1])
+        with chat_header_col1:
+            st.markdown("### 💬 Cuộc hội thoại")
+        with chat_header_col2:
+            if st.button("🗑️ Xóa hết", key="clear_all", use_container_width=True):
                 st.session_state.messages = []
+                st.session_state.gold_answer = ""
+                st.session_state.model_answer = ""
+                st.session_state.selected_question = None
                 st.rerun()
 
-        if st.session_state.messages:
-            for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-        else:
-            st.markdown('<div class="empty"><div style="font-size:3rem;margin-bottom:1rem">💭</div><h3>Welcome to AI Assistant!</h3><p>Ask me anything or try quick questions →</p></div>', unsafe_allow_html=True)
+        # Chat messages container
+        chat_container = st.container(height=400)
+        with chat_container:
+            if st.session_state.messages:
+                for msg in st.session_state.messages:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
+            else:
+                st.markdown("""
+                <div style="text-align:center;padding:3rem;color:#666;">
+                    <div style="font-size:4rem;margin-bottom:1rem;">💭</div>
+                    <h3>Chào mừng đến với AI Assistant!</h3>
+                    <p>Hãy đặt câu hỏi hoặc chọn câu hỏi mẫu bên phải →</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-        if prompt := st.chat_input("💬 Ask your question here..."):
+        # Chat input
+        if prompt := st.chat_input("💬 Đặt câu hỏi của bạn..."):
             send_message(prompt)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Preview (if question selected)
-    if st.session_state.selected_question is not None:
-        with other_cols[0]:
+    # === SIDEBAR: Question Selection ===
+    with col_sidebar:
+        st.markdown("### ⚡ Chọn câu hỏi mẫu")
+        
+        # Create selectbox options
+        question_options = ["-- Chọn câu hỏi --"] + [f"{q['icon']} {q['title']}" for q in QUESTIONS]
+        
+        selected_index = st.selectbox(
+            "Danh sách câu hỏi:",
+            options=range(len(question_options)),
+            format_func=lambda x: question_options[x],
+            index=0,
+            key="question_selectbox"
+        )
+        
+        # Update selected question when selectbox changes
+        if selected_index > 0:
+            st.session_state.selected_question = selected_index - 1
+        else:
+            st.session_state.selected_question = None
+        
+        # Question preview and action section
+        if st.session_state.selected_question is not None:
             q = QUESTIONS[st.session_state.selected_question]
             
-            st.markdown('<div class="preview">', unsafe_allow_html=True)
-            st.markdown("### 📋 Sample Q&A")
+            # Enhanced question display box with fixed height and scroll
+            st.markdown("### 📋 Chi tiết câu hỏi")
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+                        border: 2px solid #2196f3;
+                        border-radius: 12px;
+                        padding: 1.5rem;
+                        margin: 1rem 0;
+                        height: 250px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        display: flex;
+                        flex-direction: column;">
+                <div style="display: flex; align-items: center; margin-bottom: 1rem; flex-shrink: 0;">
+                    <span style="font-size: 2rem; margin-right: 0.5rem;">{q['icon']}</span>
+                    <h4 style="margin: 0; color: #1565c0; font-weight: bold;">{q['title']}</h4>
+                </div>
+                <div style="background: rgba(255,255,255,0.7); 
+                           padding: 1rem; 
+                           border-radius: 8px;
+                           border-left: 4px solid #2196f3;
+                           color: #0d47a1;
+                           line-height: 1.6;
+                           font-size: 0.95rem;
+                           flex: 1;
+                           overflow-y: auto;">
+                    <strong>Câu hỏi:</strong><br>
+                    {q['question']}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            st.markdown(f'<div style="background:white;padding:1rem;border-radius:10px;margin-bottom:1rem"><strong>{q["icon"]} {q["title"]}</strong><br><em>{q["question"]}</em></div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="preview-answer"><strong>💡 Sample Answer</strong><br>{q["answer"]}</div>', unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🚀 Ask", key=f"ask_{st.session_state.selected_question}"):
-                    send_message(q["question"])
-            with col2:
-                if st.button("❌ Close", key=f"close_{st.session_state.selected_question}"):
-                    st.session_state.selected_question = None
-                    st.rerun()
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+            # Action button
+            if st.button("🚀 Gửi câu hỏi này", key=f"ask_{st.session_state.selected_question}", use_container_width=True, type="primary"):
+                send_message(q["question"], is_example=True, example_index=st.session_state.selected_question)
 
-    # Sidebar
-    with other_cols[-1]:
-        st.markdown('<div class="sidebar">', unsafe_allow_html=True)
-        st.markdown("### ⚡ Quick Start")
+    # === ANSWER COMPARISON SECTION ===
+    if st.session_state.get("gold_answer") and st.session_state.get("model_answer"):
+        st.markdown("---")
+        st.markdown("### 📊 So sánh câu trả lời")
         
-        for i, q in enumerate(QUESTIONS):
-            button_label = f"{q['icon']} {q['title']}\n{q['text']}"
-            if st.button(button_label, key=f"quick_{i}"):
-                if st.session_state.selected_question == i:
-                    pass
-                else:
-                    st.session_state.selected_question = i
-                    st.rerun()
+        col_gold, col_model = st.columns(2)
         
-        st.markdown('</div>', unsafe_allow_html=True)
+        with col_gold:
+            st.markdown("""
+            <div style="border: 2px solid #ff9800;
+                        border-radius: 12px;
+                        background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+                        height: 400px;
+                        overflow-y: auto;
+                        box-shadow: 0 4px 8px rgba(255,152,0,0.2);">
+                <div style="padding: 1.5rem;">
+                    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                        <span style="font-size: 1.5rem; margin-right: 0.5rem;">🏆</span>
+                        <h4 style="margin: 0; color: #e65100; font-weight: bold;">Câu trả lời chuẩn</h4>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.8);
+                               padding: 1rem;
+                               border-radius: 8px;
+                               border-left: 4px solid #ff9800;
+                               color: #bf360c;
+                               line-height: 1.6;
+                               white-space: pre-wrap;
+                               font-size: 0.9rem;">""" + 
+                f"{st.session_state.gold_answer}" + 
+                """</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_model:
+            st.markdown("""
+            <div style="border: 2px solid #4caf50;
+                        border-radius: 12px;
+                        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+                        height: 400px;
+                        overflow-y: auto;
+                        box-shadow: 0 4px 8px rgba(76,175,80,0.2);">
+                <div style="padding: 1.5rem;">
+                    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                        <span style="font-size: 1.5rem; margin-right: 0.5rem;">🤖</span>
+                        <h4 style="margin: 0; color: #2e7d32; font-weight: bold;">AI Generated</h4>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.8);
+                               padding: 1rem;
+                               border-radius: 8px;
+                               border-left: 4px solid #4caf50;
+                               color: #1b5e20;
+                               line-height: 1.6;
+                               white-space: pre-wrap;
+                               font-size: 0.9rem;">""" + 
+                f"{st.session_state.model_answer}" + 
+                """</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Enhanced comparison actions
+        st.markdown("<br>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            if st.button("📋 Copy Câu trả lời chuẩn", use_container_width=True, type="secondary"):
+                st.code(st.session_state.gold_answer, language="text")
+        
+        with col2:
+            if st.button("🤖 Copy AI Answer", use_container_width=True, type="secondary"):
+                st.code(st.session_state.model_answer, language="text")
+        
+        with col3:
+            if st.button("🗑️ Xóa so sánh", use_container_width=True):
+                st.session_state.gold_answer = ""
+                st.session_state.model_answer = ""
+                st.rerun()
