@@ -5,11 +5,12 @@ import pdfplumber
 import tiktoken
 from litellm import completion
 from cachetools import TTLCache
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, constr
 from dotenv import load_dotenv
 import os
+import tempfile
 
 # Load environment variables from .env
 load_dotenv()
@@ -49,7 +50,7 @@ def extract_text_from_pdf(url):
         'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
-        'ngrok-skip-browser-warning': 'any-value',  # Skip ngrok browser warning
+        'ngrok-skip-browser-warning': 'any-value',
     }
     
     resp = requests.get(url, headers=headers, timeout=30)
@@ -110,6 +111,43 @@ async def stream_summary(request: PDFRequest):
     full_text = extract_text_from_pdf(url)
     input_text = truncate_text(full_text)
     return StreamingResponse(run_inference(input_text), media_type="text/event-stream")
+
+
+# -----------------------------
+# ✅ Thêm phần upload PDF từ local
+# -----------------------------
+@app.post("/upload_pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file PDF")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    with pdfplumber.open(tmp_path) as pdf:
+        full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+
+    input_text = truncate_text(full_text)
+    summary = "".join(run_inference(input_text))
+
+    return JSONResponse(content={"summary": summary})
+
+@app.post("/upload_pdf_stream")
+async def upload_pdf_stream(file: UploadFile = File(...)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file PDF")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    with pdfplumber.open(tmp_path) as pdf:
+        full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+
+    input_text = truncate_text(full_text)
+    return StreamingResponse(run_inference(input_text), media_type="text/event-stream")
+
 
 if __name__ == "__main__":
     import uvicorn
