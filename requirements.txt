@@ -7,3 +7,4 @@ litellm==1.37.17
 cachetools==5.5.0
 pydantic==2.8.2
 python-multipart
+underthesea
