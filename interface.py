@@ -2,13 +2,54 @@ import streamlit as st
 import requests
 import base64
 from requests.exceptions import RequestException, Timeout, ConnectionError
+import nltk
+from underthesea import word_tokenize
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from rouge_score import rouge_scorer
+import re
+import json
+import os
+
+def clean_text(text: str) -> str:
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # remove bold
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)      # remove italic
+    text = re.sub(r'#+\s*', '', text)               # remove headers
+    text = re.sub(r'[^\w\s]', ' ', text)            # remove punctuation
+    text = re.sub(r'\s+', ' ', text)                # normalize spaces
+    return text.strip()
 
 st.set_page_config(
-    layout="wide", 
-    page_title="AI Document Processor", 
-    page_icon="📄",
-    initial_sidebar_state="expanded"
+    page_title="AI Document Processor",   # Tiêu đề trang (hiển thị trên tab trình duyệt)
+    page_icon="📄",                       # Biểu tượng tab
+    layout="wide",                        # Giao diện toàn màn hình (wide mode)
+    initial_sidebar_state="expanded",     # Thanh sidebar mở mặc định
 )
+
+# 🎨 Tuỳ chỉnh CSS để kiểm soát tỷ lệ hiển thị
+st.markdown(
+    """
+    <style>
+        /* Điều chỉnh tỷ lệ tổng thể của nội dung (1.0 = giữ nguyên mặc định) */
+        .block-container {
+            transform: scale(1.0);
+            transform-origin: top left; /* Điểm neo để scale */
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+@st.cache_data
+def load_sample_data():
+    """Load sample summaries from JSON file"""
+    json_file_path = "sample_summaries.json"
+    
+    try:
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        st.error(f"❌ File {json_file_path} not found. Please make sure the JSON file exists.")
+        return {"examples": {}}
 
 # Unified CSS for color synchronization
 st.markdown("""
@@ -260,47 +301,17 @@ if function_choice == "📄 PDF Text Summarizer":
         # --- Đường kẻ phân cách 1 (ngay dưới URL) ---
         st.markdown('<hr style="margin:0.5rem 0 1.5rem 0;">', unsafe_allow_html=True)
 
-        # --- Layout: viewer | controls + comparison ----------------------
-        col_viewer, col_controls = st.columns([1.6, 1], gap="large")
+        # --- Layout: controls + comparison | viewer ----------------------
+        col_controls, col_viewer = st.columns([1, 1.6], gap="large")
 
-        # --- LEFT: PDF viewer -------------------------------------------
-        with col_viewer:
-            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
-            if pdf_url:
-                try:
-                    with st.spinner("📄 Loading PDF…"):
-                        pdf_data = requests.get(pdf_url, timeout=30).content
-                        b64 = base64.b64encode(pdf_data).decode()
-                    st.markdown(
-                        f"""
-                        <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;">
-                            <iframe src="data:application/pdf;base64,{b64}"
-                                    width="100%" height="1000" style="border:none;"></iframe>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                except Exception:
-                    st.error("❌ Unable to load PDF. Check the URL and try again.")
-            else:
-                st.markdown(
-                    """
-                    <div style="text-align:center;padding:4rem;">
-                        <div style="font-size:4rem;margin-bottom:1rem;">📄</div>
-                        <h3 style="color:#666;margin-bottom:1rem;">No PDF Selected</h3>
-                        <p style="color:#999;">Enter a PDF URL to view the document</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-        # --- RIGHT: controls & summaries --------------------------------
+        # --- LEFT: controls & summaries --------------------------------
         with col_controls:
-            # A. Generate button for URL
+            # A. Generate button for URL - UNIFIED ENDPOINT
             if st.button("✨ Generate Summary", use_container_width=True, type="primary", key="url_summary"):
                 if pdf_url:
                     with st.spinner("📄 Processing PDF…"):
                         try:
+                            # Use correct endpoint for URL-based PDFs
                             resp = requests.post(
                                 "http://1.53.58.232:8521/summarize_pdf",
                                 json={"pdf_url": pdf_url},
@@ -477,6 +488,118 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
                         unsafe_allow_html=True,
                     )
 
+                # --- SCORING SECTION ---
+                if st.session_state.get("pdf_summary") and st.session_state.get("model_summary"):
+                    if st.button("📊 Evaluate Summary"):
+                        import re, math
+                        from collections import Counter
+                        
+                        def tokenize(text):
+                            return re.findall(r'[a-zA-ZÀ-ỹ0-9]+', re.sub(r'\*\*(.*?)\*\*', r'\1', text).lower())
+                        
+                        def bleu_n(ref, cand, n):
+                            if len(cand) < n: return 0.0
+                            ref_ng = Counter([tuple(ref[i:i+n]) for i in range(len(ref)-n+1)])
+                            cand_ng = Counter([tuple(cand[i:i+n]) for i in range(len(cand)-n+1)])
+                            matches = sum(min(cand_ng[ng], ref_ng[ng]) for ng in cand_ng)
+                            return matches / sum(cand_ng.values()) if sum(cand_ng.values()) else 0.0
+                        
+                        def rouge_n(ref, cand, n):
+                            if len(ref) < n: return 0.0
+                            ref_ng = Counter([tuple(ref[i:i+n]) for i in range(len(ref)-n+1)])
+                            cand_ng = Counter([tuple(cand[i:i+n]) for i in range(len(cand)-n+1)])
+                            matches = sum(min(ref_ng[ng], cand_ng[ng]) for ng in ref_ng)
+                            return matches / sum(ref_ng.values())
+                        
+                        def rouge_l(ref, cand):
+                            m, n = len(ref), len(cand)
+                            L = [[0]*(n+1) for _ in range(m+1)]
+                            for i in range(1, m+1):
+                                for j in range(1, n+1):
+                                    if ref[i-1] == cand[j-1]:
+                                        L[i][j] = L[i-1][j-1] + 1
+                                    else:
+                                        L[i][j] = max(L[i-1][j], L[i][j-1])
+                            lcs = L[m][n]
+                            if m == 0 or n == 0: return 0.0
+                            recall = lcs / m
+                            precision = lcs / n
+                            return (2 * recall * precision) / (recall + precision) if (recall + precision) else 0.0
+                        
+                        ref_tokens = tokenize(st.session_state.pdf_summary)
+                        cand_tokens = tokenize(st.session_state.model_summary)
+                        
+                        # Calculate all scores
+                        b1 = bleu_n(ref_tokens, cand_tokens, 1)
+                        b2 = bleu_n(ref_tokens, cand_tokens, 2)
+                        b3 = bleu_n(ref_tokens, cand_tokens, 3)
+                        b4 = bleu_n(ref_tokens, cand_tokens, 4)
+                        r1 = rouge_n(ref_tokens, cand_tokens, 1)
+                        r2 = rouge_n(ref_tokens, cand_tokens, 2)
+                        rl = rouge_l(ref_tokens, cand_tokens)
+                        
+                        # Simple evaluation
+                        avg_score = (b1 + b2 + b3 + b4 + r1 + r2 + rl) / 7
+                        
+                        if avg_score >= 0.3:
+                            quality = "✅ Good"
+                            color = "green"
+                        elif avg_score >= 0.15:
+                            quality = "⚠️ Average"  
+                            color = "orange"
+                        else:
+                            quality = "❌ Poor"
+                            color = "red"
+                        
+                        # Display results
+                        st.markdown(f"**Summary Quality: <span style='color:{color}'>{quality}</span>** (Score: {avg_score:.3f})", unsafe_allow_html=True)
+                        
+                        # BLEU scores (top row)
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1: st.metric("BLEU-1", f"{b1:.3f}")
+                        with col2: st.metric("BLEU-2", f"{b2:.3f}")
+                        with col3: st.metric("BLEU-3", f"{b3:.3f}")
+                        with col4: st.metric("BLEU-4", f"{b4:.3f}")
+                        
+                        # ROUGE scores (bottom row)  
+                        col5, col6, col7, col8 = st.columns([1,1,1,1])
+                        with col5: st.metric("ROUGE-1", f"{r1:.3f}")
+                        with col6: st.metric("ROUGE-2", f"{r2:.3f}")
+                        with col7: st.metric("ROUGE-L", f"{rl:.3f}")
+                        with col8: st.write("")  # Empty space
+
+
+        # --- RIGHT: PDF viewer -------------------------------------------
+        with col_viewer:
+            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
+            if pdf_url:
+                try:
+                    with st.spinner("📄 Loading PDF…"):
+                        pdf_data = requests.get(pdf_url, timeout=30).content
+                        b64 = base64.b64encode(pdf_data).decode()
+                    st.markdown(
+                        f"""
+                        <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;">
+                            <iframe src="data:application/pdf;base64,{b64}"
+                                    width="100%" height="1000" style="border:none;"></iframe>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                except Exception:
+                    st.error("❌ Unable to load PDF. Check the URL and try again.")
+            else:
+                st.markdown(
+                    """
+                    <div style="text-align:center;padding:4rem;">
+                        <div style="font-size:4rem;margin-bottom:1rem;">📄</div>
+                        <h3 style="color:#666;margin-bottom:1rem;">No PDF Selected</h3>
+                        <p style="color:#999;">Enter a PDF URL to view the document</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
     with tab2:
         # File upload section
         uploaded_file = st.file_uploader(
@@ -489,45 +612,12 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
         # --- Đường kẻ phân cách ---
         st.markdown('<hr style="margin:0.5rem 0 1.5rem 0;">', unsafe_allow_html=True)
 
-        # --- Layout: viewer | controls + comparison ----------------------
-        col_viewer_upload, col_controls_upload = st.columns([1.6, 1], gap="large")
+        # --- Layout: controls + comparison | viewer ----------------------
+        col_controls_upload, col_viewer_upload = st.columns([1, 1.6], gap="large")
 
-        # --- LEFT: PDF viewer for uploaded file ---
-        with col_viewer_upload:
-            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
-            if uploaded_file is not None:
-                try:
-                    # Display the uploaded PDF
-                    pdf_bytes = uploaded_file.read()
-                    b64 = base64.b64encode(pdf_bytes).decode()
-                    st.markdown(
-                        f"""
-                        <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;">
-                            <iframe src="data:application/pdf;base64,{b64}"
-                                    width="100%" height="1000" style="border:none;"></iframe>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                    # Reset file pointer for later use
-                    uploaded_file.seek(0)
-                except Exception as e:
-                    st.error(f"❌ Unable to display PDF: {str(e)}")
-            else:
-                st.markdown(
-                    """
-                    <div style="text-align:center;padding:4rem;">
-                        <div style="font-size:4rem;margin-bottom:1rem;">📁</div>
-                        <h3 style="color:#666;margin-bottom:1rem;">No PDF Uploaded</h3>
-                        <p style="color:#999;">Upload a PDF file to view the document</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-        # --- RIGHT: controls & summaries for uploaded file --------------------------------
+        # --- LEFT: controls & summaries for uploaded file --------------------------------
         with col_controls_upload:
-            # A. Generate button for uploaded file
+            # A. Generate button for uploaded file - UNIFIED ENDPOINT
             if st.button("✨ Generate Summary", use_container_width=True, type="primary", key="file_summary"):
                 if uploaded_file is not None:
                     with st.spinner("📄 Processing uploaded PDF…"):
@@ -535,12 +625,12 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
                             # Reset file pointer
                             uploaded_file.seek(0)
                             
-                            # Prepare the file for upload to API
+                            # Prepare the file for upload to correct API endpoint
                             files = {"file": (uploaded_file.name, uploaded_file.read(), "application/pdf")}
                             
-                            # Send to your API endpoint
+                            # Send to correct file upload endpoint
                             resp = requests.post(
-                                "http://1.53.58.232:8521/upload_pdf",
+                                "http://1.53.58.232:8521/summarize_pdf_file",
                                 files=files,
                                 timeout=150,
                             )
@@ -591,13 +681,46 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
                         del st.session_state.model_summary_upload
                     st.rerun()
 
+        # --- RIGHT: PDF viewer for uploaded file ---
+        with col_viewer_upload:
+            st.markdown('<h2 class="section-header">📖 PDF Viewer</h2>', unsafe_allow_html=True)
+            if uploaded_file is not None:
+                try:
+                    # Display the uploaded PDF
+                    pdf_bytes = uploaded_file.read()
+                    b64 = base64.b64encode(pdf_bytes).decode()
+                    st.markdown(
+                        f"""
+                        <div style="border:1px solid #dee2e6;border-radius:8px;overflow:hidden;">
+                            <iframe src="data:application/pdf;base64,{b64}"
+                                    width="100%" height="1000" style="border:none;"></iframe>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    # Reset file pointer for later use
+                    uploaded_file.seek(0)
+                except Exception as e:
+                    st.error(f"❌ Unable to display PDF: {str(e)}")
+            else:
+                st.markdown(
+                    """
+                    <div style="text-align:center;padding:4rem;">
+                        <div style="font-size:4rem;margin-bottom:1rem;">📁</div>
+                        <h3 style="color:#666;margin-bottom:1rem;">No PDF Uploaded</h3>
+                        <p style="color:#999;">Upload a PDF file to view the document</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
                     
 ############################## phan loai
 
 
 
 elif function_choice == "🏷️ Document Classification":
-    st.markdown('<h3>🏷️ Document Classification</h3>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🏷️ Document Classification</h3></h1>', unsafe_allow_html=True)
+    #st.markdown('<h3>🏷️ Document Classification</h3>', unsafe_allow_html=True)
     col_input, col_viewer = st.columns([1, 2], gap="large")
     with col_input:
         st.markdown('<hr>', unsafe_allow_html=True)
@@ -889,7 +1012,7 @@ elif function_choice == "💬 Q&A Chatbot":
                 padding:2rem;border-radius:15px;margin-bottom:2rem;color:white;text-align:center;">
         <h1 style="margin:0;font-size:2.5rem;">🤖 AI Q&A Assistant</h1>
         <p style="margin:0.5rem 0 0 0;font-size:1.2rem;opacity:0.9;">
-            Hỏi đáp thông minh với AI - So sánh câu trả lời chuẩn và AI
+            Hỏi đáp thông minh với AI
         </p>
     </div>
     """, unsafe_allow_html=True)
