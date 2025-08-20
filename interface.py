@@ -315,7 +315,7 @@ if function_choice == "📄 PDF Text Summarizer":
                             resp = requests.post(
                                 "http://1.53.58.232:8521/summarize_pdf",
                                 json={"pdf_url": pdf_url},
-                                timeout=150,
+                                timeout=300,
                             )
                             st.session_state.model_summary = (
                                 resp.json().get("summary", "No summary data available.")
@@ -1191,4 +1191,5 @@ elif function_choice == "💬 Q&A Chatbot":
             if st.button("🗑️ Xóa so sánh", use_container_width=True):
                 st.session_state.gold_answer = ""
                 st.session_state.model_answer = ""
+
                 st.rerun()
