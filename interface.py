@@ -1,14 +1,17 @@
 import streamlit as st
 import requests
 import base64
-from requests.exceptions import RequestException, Timeout, ConnectionError
 import nltk
-from underthesea import word_tokenize
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
 import re
 import json
-import os
+
+# Download required NLTK data (run once)
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', quiet=True)
 
 def clean_text(text: str) -> str:
     text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # remove bold
@@ -491,56 +494,65 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
                 # --- SCORING SECTION ---
                 if st.session_state.get("pdf_summary") and st.session_state.get("model_summary"):
                     if st.button("📊 Evaluate Summary"):
-                        import re, math
-                        from collections import Counter
+                        # Import required libraries
+                        def preprocess_text(text):
+                            """Clean and tokenize text similar to original implementation"""
+                            # Remove markdown formatting
+                            cleaned = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+                            # Tokenize and lowercase
+                            tokens = re.findall(r'[a-zA-ZÀ-ỹ0-9]+', cleaned.lower())
+                            return tokens
                         
-                        def tokenize(text):
-                            return re.findall(r'[a-zA-ZÀ-ỹ0-9]+', re.sub(r'\*\*(.*?)\*\*', r'\1', text).lower())
+                        def calculate_bleu_scores(reference_tokens, candidate_tokens):
+                            """Calculate BLEU scores using NLTK"""
+                            if not candidate_tokens or not reference_tokens:
+                                return [0.0, 0.0, 0.0, 0.0]
+                            
+                            # NLTK expects list of reference sentences
+                            reference = [reference_tokens]
+                            candidate = candidate_tokens
+                            
+                            # Use smoothing to handle edge cases
+                            smoothie = SmoothingFunction().method4
+                            
+                            try:
+                                bleu1 = sentence_bleu(reference, candidate, weights=(1, 0, 0, 0), smoothing_function=smoothie)
+                                bleu2 = sentence_bleu(reference, candidate, weights=(0.5, 0.5, 0, 0), smoothing_function=smoothie)
+                                bleu3 = sentence_bleu(reference, candidate, weights=(0.33, 0.33, 0.33, 0), smoothing_function=smoothie)
+                                bleu4 = sentence_bleu(reference, candidate, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=smoothie)
+                                return [bleu1, bleu2, bleu3, bleu4]
+                            except:
+                                return [0.0, 0.0, 0.0, 0.0]
                         
-                        def bleu_n(ref, cand, n):
-                            if len(cand) < n: return 0.0
-                            ref_ng = Counter([tuple(ref[i:i+n]) for i in range(len(ref)-n+1)])
-                            cand_ng = Counter([tuple(cand[i:i+n]) for i in range(len(cand)-n+1)])
-                            matches = sum(min(cand_ng[ng], ref_ng[ng]) for ng in cand_ng)
-                            return matches / sum(cand_ng.values()) if sum(cand_ng.values()) else 0.0
+                        def calculate_rouge_scores(reference_text, candidate_text):
+                            """Calculate ROUGE scores using rouge-score library"""
+                            scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+                            scores = scorer.score(reference_text, candidate_text)
+                            
+                            rouge1_f = scores['rouge1'].fmeasure
+                            rouge2_f = scores['rouge2'].fmeasure
+                            rougeL_f = scores['rougeL'].fmeasure
+                            
+                            return rouge1_f, rouge2_f, rougeL_f
                         
-                        def rouge_n(ref, cand, n):
-                            if len(ref) < n: return 0.0
-                            ref_ng = Counter([tuple(ref[i:i+n]) for i in range(len(ref)-n+1)])
-                            cand_ng = Counter([tuple(cand[i:i+n]) for i in range(len(cand)-n+1)])
-                            matches = sum(min(ref_ng[ng], cand_ng[ng]) for ng in ref_ng)
-                            return matches / sum(ref_ng.values())
+                        # Preprocess texts
+                        ref_tokens = preprocess_text(st.session_state.pdf_summary)
+                        cand_tokens = preprocess_text(st.session_state.model_summary)
                         
-                        def rouge_l(ref, cand):
-                            m, n = len(ref), len(cand)
-                            L = [[0]*(n+1) for _ in range(m+1)]
-                            for i in range(1, m+1):
-                                for j in range(1, n+1):
-                                    if ref[i-1] == cand[j-1]:
-                                        L[i][j] = L[i-1][j-1] + 1
-                                    else:
-                                        L[i][j] = max(L[i-1][j], L[i][j-1])
-                            lcs = L[m][n]
-                            if m == 0 or n == 0: return 0.0
-                            recall = lcs / m
-                            precision = lcs / n
-                            return (2 * recall * precision) / (recall + precision) if (recall + precision) else 0.0
+                        # Calculate BLEU scores
+                        bleu_scores = calculate_bleu_scores(ref_tokens, cand_tokens)
+                        b1, b2, b3, b4 = bleu_scores
                         
-                        ref_tokens = tokenize(st.session_state.pdf_summary)
-                        cand_tokens = tokenize(st.session_state.model_summary)
+                        # Calculate ROUGE scores (using original text for better performance)
+                        r1, r2, rl = calculate_rouge_scores(
+                            st.session_state.pdf_summary, 
+                            st.session_state.model_summary
+                        )
                         
-                        # Calculate all scores
-                        b1 = bleu_n(ref_tokens, cand_tokens, 1)
-                        b2 = bleu_n(ref_tokens, cand_tokens, 2)
-                        b3 = bleu_n(ref_tokens, cand_tokens, 3)
-                        b4 = bleu_n(ref_tokens, cand_tokens, 4)
-                        r1 = rouge_n(ref_tokens, cand_tokens, 1)
-                        r2 = rouge_n(ref_tokens, cand_tokens, 2)
-                        rl = rouge_l(ref_tokens, cand_tokens)
-                        
-                        # Simple evaluation
+                        # Calculate average score (same logic as original)
                         avg_score = (b1 + b2 + b3 + b4 + r1 + r2 + rl) / 7
                         
+                        # Determine quality level (same thresholds as original)
                         if avg_score >= 0.3:
                             quality = "✅ Good"
                             color = "green"
@@ -551,7 +563,7 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
                             quality = "❌ Poor"
                             color = "red"
                         
-                        # Display results
+                        # Display results (identical to original)
                         st.markdown(f"**Summary Quality: <span style='color:{color}'>{quality}</span>** (Score: {avg_score:.3f})", unsafe_allow_html=True)
                         
                         # BLEU scores (top row)
@@ -566,7 +578,7 @@ Thông tư 2025/TT-BNNMT sửa đổi, bổ sung Danh mục thuốc bảo vệ t
                         with col5: st.metric("ROUGE-1", f"{r1:.3f}")
                         with col6: st.metric("ROUGE-2", f"{r2:.3f}")
                         with col7: st.metric("ROUGE-L", f"{rl:.3f}")
-                        with col8: st.write("")  # Empty space
+                        with col8: st.write("")
 
 
         # --- RIGHT: PDF viewer -------------------------------------------
