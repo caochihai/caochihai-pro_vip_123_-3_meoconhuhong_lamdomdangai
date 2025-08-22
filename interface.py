@@ -759,7 +759,7 @@ elif function_choice == "🏷️ Document Classification":
                 with st.spinner("🔍 Classifying document..."):
                     try:
                         response = requests.post(
-                            "http://1.53.58.232:8888/classify",
+                            "http://1.53.58.232:8888/classify_dvct",
                             json={"summary": classification_summary, "issuing_agency": agency},
                             timeout=30
                         )
@@ -1203,4 +1203,5 @@ elif function_choice == "💬 Q&A Chatbot":
             if st.button("🗑️ Xóa so sánh", use_container_width=True):
                 st.session_state.gold_answer = ""
                 st.session_state.model_answer = ""
+
                 st.rerun()
